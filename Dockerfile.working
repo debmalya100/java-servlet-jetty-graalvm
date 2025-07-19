@@ -1,0 +1,77 @@
+# Stage 1: Build native image with GraalVM
+FROM ghcr.io/graalvm/native-image-community:21 AS builder
+
+WORKDIR /app
+
+# Install Maven and tools
+RUN microdnf install -y wget tar gzip findutils file && \
+    wget https://archive.apache.org/dist/maven/maven-3/3.9.8/binaries/apache-maven-3.9.8-bin.tar.gz && \
+    tar -xzf apache-maven-3.9.8-bin.tar.gz && \
+    ln -s /app/apache-maven-3.9.8/bin/mvn /usr/local/bin/mvn && \
+    rm apache-maven-3.9.8-bin.tar.gz
+
+# Copy everything
+COPY . .
+
+# Set environment
+ENV MAVEN_OPTS="-Xmx12g -XX:+UseG1GC -XX:MaxMetaspaceSize=2g"
+ENV GRAALVM_HOME=/opt/graalvm-community-openjdk-21
+
+# Build JAR (we know this works)
+RUN mvn dependency:go-offline -B --no-transfer-progress || true && \
+    mvn clean package -DskipTests --no-transfer-progress --batch-mode && \
+    echo "=== JAR build complete ===" && \
+    ls -la target/
+
+# Build native image using direct command (we know this works!)
+RUN echo "=== Building native image with direct command ===" && \
+    /usr/lib64/graalvm/graalvm-community-java21/bin/native-image \
+      --no-fallback \
+      -H:+ReportExceptionStackTraces \
+      -H:+AddAllCharsets \
+      -H:+UnlockExperimentalVMOptions \
+      --initialize-at-run-time=com.mysql,org.eclipse.jetty,com.zaxxer.hikari,redis.clients \
+      --initialize-at-build-time=org.slf4j,ch.qos.logback \
+      -cp target/sse-jetty-server-1.0-SNAPSHOT.jar \
+      -o target/sse-jetty-server-native \
+      com.example.sse.JettySSEServer && \
+    echo "=== Native image build completed successfully! ===" && \
+    ls -la target/ && \
+    file target/sse-jetty-server-native
+
+# Stage 2: Runtime container  
+FROM ubuntu:22.04
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    libc6 \
+    libgcc-s1 \
+    libstdc++6 \
+    zlib1g \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
+
+WORKDIR /app
+
+# Copy the native executable
+COPY --from=builder /app/target/sse-jetty-server-native ./app
+
+# Set proper permissions
+RUN chmod +x ./app
+
+# Create a non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+EXPOSE 8080
+
+# Use exec form for proper signal handling
+ENTRYPOINT ["./app"]

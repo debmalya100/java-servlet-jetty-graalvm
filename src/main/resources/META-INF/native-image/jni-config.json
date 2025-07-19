@@ -1,0 +1,41 @@
+[
+  {
+    "name": "java.lang.String",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": ["byte[]"]
+      }
+    ]
+  },
+  {
+    "name": "java.lang.System",
+    "methods": [
+      {
+        "name": "getProperty",
+        "parameterTypes": ["java.lang.String"]
+      },
+      {
+        "name": "getenv",
+        "parameterTypes": ["java.lang.String"]
+      },
+      {
+        "name": "currentTimeMillis",
+        "parameterTypes": []
+      },
+      {
+        "name": "nanoTime",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.net.InetAddress",
+    "methods": [
+      {
+        "name": "getByName",
+        "parameterTypes": ["java.lang.String"]
+      }
+    ]
+  }
+]

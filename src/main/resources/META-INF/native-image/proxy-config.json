@@ -1,0 +1,33 @@
+[
+  {
+    "interfaces": ["java.sql.Connection"]
+  },
+  {
+    "interfaces": ["java.sql.Statement"]
+  },
+  {
+    "interfaces": ["java.sql.PreparedStatement"]
+  },
+  {
+    "interfaces": ["java.sql.ResultSet"]
+  },
+  {
+    "interfaces": ["javax.sql.DataSource"]
+  },
+  {
+    "interfaces": ["jakarta.servlet.http.HttpServletRequest"]
+  },
+  {
+    "interfaces": ["jakarta.servlet.http.HttpServletResponse"]
+  },
+  {
+    "interfaces": [
+      "java.util.concurrent.Callable"
+    ]
+  },
+  {
+    "interfaces": [
+      "java.lang.Runnable"
+    ]
+  }
+]

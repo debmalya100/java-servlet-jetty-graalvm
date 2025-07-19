@@ -1,0 +1,50 @@
+[
+  {
+    "name": "com.example.sse.model.DataModels$SSEResponse"
+  },
+  {
+    "name": "com.example.sse.model.DataModels$SurveyData"
+  },
+  {
+    "name": "com.example.sse.model.DataModels$CommentData"
+  },
+  {
+    "name": "com.example.sse.model.DataModels$UserStatus"
+  },
+  {
+    "name": "java.util.ArrayList"
+  },
+  {
+    "name": "java.util.LinkedHashMap"
+  },
+  {
+    "name": "java.util.ArrayList"
+  },
+  {
+    "name": "java.util.HashMap"
+  },
+  {
+    "name": "java.util.LinkedHashMap"
+  },
+  {
+    "name": "java.lang.String"
+  },
+  {
+    "name": "java.lang.Long"
+  },
+  {
+    "name": "java.lang.Integer"
+  },
+  {
+    "name": "java.lang.Boolean"
+  },
+  {
+    "name": "java.lang.Double"
+  },
+  {
+    "name": "java.time.LocalDateTime"
+  },
+  {
+    "name": "java.time.Instant"
+  }
+]

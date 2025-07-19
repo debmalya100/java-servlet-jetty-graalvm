@@ -1,0 +1,124 @@
+# Stage 1: Build native image with GraalVM
+FROM ghcr.io/graalvm/native-image-community:21 AS builder
+
+WORKDIR /app
+
+# Install Maven and required tools
+RUN microdnf install -y wget tar gzip findutils && \
+    wget https://archive.apache.org/dist/maven/maven-3/3.9.8/binaries/apache-maven-3.9.8-bin.tar.gz && \
+    tar -xzf apache-maven-3.9.8-bin.tar.gz && \
+    ln -s /app/apache-maven-3.9.8/bin/mvn /usr/local/bin/mvn && \
+    rm apache-maven-3.9.8-bin.tar.gz
+
+    
+# Copy everything except what's in .dockerignore
+COPY . .
+
+# Set Maven and GraalVM memory settings
+ENV MAVEN_OPTS="-Xmx12g -XX:+UseG1GC -XX:MaxMetaspaceSize=2g"
+ENV GRAALVM_HOME=/opt/graalvm-community-openjdk-21
+
+# Download dependencies
+RUN mvn dependency:go-offline -B --no-transfer-progress || true
+
+# Build regular JAR first
+RUN mvn clean package -DskipTests --no-transfer-progress --batch-mode && \
+    echo "=== Regular JAR build completed ===" && \
+    ls -lh target/
+
+# Debug: Show GraalVM version and config files
+RUN echo "=== GraalVM Debug Info ===" && \
+    java -version && \
+    native-image --version && \
+    echo "=== Configuration files available: ===" && \
+    find . -name "*.json" -type f | head -10
+
+# Show the exact Maven command that will be executed
+RUN echo "=== About to run native build with full verbosity ===" && \
+    mvn help:describe -Dplugin=org.graalvm.buildtools:native-maven-plugin -Ddetail=true -Pnative || true
+
+# Try native build with maximum verbosity and capture ALL output
+RUN echo "=== Starting native image build with full output capture ===" && \
+    (mvn package -Pnative -DskipTests --no-transfer-progress --batch-mode -X -e 2>&1 || true) | tee full-build.log && \
+    echo "=== Maven native build completed (exit code captured) ===" && \
+    echo "=== Checking if native executable was created ===" && \
+    ls -la target/ && \
+    if [ ! -f target/sse-jetty-server-native ]; then \
+      echo "=== Native executable NOT found. Analyzing build log ===" && \
+      echo "=== Last 100 lines of build output ===" && \
+      tail -100 full-build.log && \
+      echo "=== Searching for specific error patterns ===" && \
+      grep -i "error\|exception\|failed\|fatal" full-build.log | tail -20 && \
+      echo "=== Searching for native-image command in log ===" && \
+      grep -A5 -B5 "native-image" full-build.log | tail -20 && \
+      echo "=== Attempting direct native-image build ===" && \
+      /usr/lib64/graalvm/graalvm-community-java21/bin/native-image \
+        --version && \
+      echo "=== Direct native-image with minimal settings ===" && \
+      /usr/lib64/graalvm/graalvm-community-java21/bin/native-image \
+        --no-fallback \
+        --allow-incomplete-classpath \
+        -H:+ReportExceptionStackTraces \
+        -cp target/sse-jetty-server-1.0-SNAPSHOT.jar \
+        -H:Name=target/sse-jetty-server-native \
+        com.example.sse.JettySSEServer \
+        --verbose 2>&1 | tee direct-build.log || \
+      (echo "=== Direct build also failed. Error analysis: ===" && \
+       echo "=== Direct build errors ===" && \
+       tail -50 direct-build.log && \
+       echo "=== Checking JAR contents for main class ===" && \
+       jar -tf target/sse-jetty-server-1.0-SNAPSHOT.jar | grep -i jetty | head -10 && \
+       echo "=== Checking if main class is executable ===" && \
+       java -cp target/sse-jetty-server-1.0-SNAPSHOT.jar com.example.sse.JettySSEServer --help 2>&1 | head -10 || echo "Main class test failed" && \
+       exit 1); \
+    else \
+      echo "=== SUCCESS: Native executable found! ==="; \
+    fi
+
+# Final verification
+RUN echo "=== Final verification ===" && \
+    ls -lh target/ && \
+    if [ -f target/sse-jetty-server-native ]; then \
+      file target/sse-jetty-server-native && \
+      echo "=== Native executable created successfully! ==="; \
+    else \
+      echo "=== ERROR: Native executable still not found ==="; \
+      exit 1; \
+    fi
+
+# Stage 2: Runtime container  
+FROM ubuntu:22.04
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    libc6 \
+    libgcc-s1 \
+    libstdc++6 \
+    zlib1g \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
+
+WORKDIR /app
+
+# Copy the native executable
+COPY --from=builder /app/target/sse-jetty-server-native ./app
+
+# Set proper permissions
+RUN chmod +x ./app
+
+# Create a non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+EXPOSE 8080
+
+# Use exec form for proper signal handling
+ENTRYPOINT ["./app"]

@@ -1,0 +1,62 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "\\Qapplication.properties\\E"
+      },
+      {
+        "pattern": "\\Qtemplates/status.html\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/\\E.*"
+      },
+      {
+        "pattern": "\\QMETA-INF/maven/\\E.*"
+      },
+      {
+        "pattern": ".*\\.properties$"
+      },
+      {
+        "pattern": ".*\\.html$"
+      },
+      {
+        "pattern": ".*\\.xml$"
+      },
+      {
+        "pattern": ".*\\.json$"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/\\E.*"
+      },
+      {
+        "pattern": "\\QMETA-INF/native-image/\\E.*"
+      },
+      {
+        "pattern": ".*\\.properties"
+      },
+      {
+        "pattern": ".*\\.xml"
+      },
+      {
+        "pattern": ".*\\.yml"
+      },
+      {
+        "pattern": ".*\\.yaml"
+      },
+      {
+        "pattern": "logback.*"
+      },
+      {
+        "pattern": "application.*"
+      }
+    ]
+  },
+  "bundles": [
+    {
+      "name": "ch.qos.logback.classic.spi.PackagingDataCalculator"
+    },
+    {
+      "name": "ch.qos.logback.core.CoreConstants"
+    }
+  ]
+}
